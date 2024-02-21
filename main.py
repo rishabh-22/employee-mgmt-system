@@ -3,6 +3,9 @@ class Employee:
     assigned_ids = set()
 
     def __init__(self, name, emp_id, title, department):
+        if not name or not emp_id or not title or not department:
+            raise ValueError("Please enter valid values for employee.")
+        
         if emp_id in Employee.assigned_ids:
             raise ValueError(f"Employee ID '{emp_id}' is not unique. Please choose a different ID.")
 
@@ -14,14 +17,13 @@ class Employee:
         # Add the assigned employee ID to the set
         Employee.assigned_ids.add(emp_id)
 
-    def display_details(self):
-        print(f"Name: {self.name}, ID: {self.emp_id}, Title: {self.title}, Department: {self.department}")
+    def get_department(self):
+        return self.department
 
     def __str__(self):
-        return f"{self.name} - {self.emp_id}"
+        return f"Name: {self.name}, ID: {self.emp_id}, Title: {self.title}, Department: {self.department}"
 
-    # Override __del__ method to remove the assigned ID when an employee is deleted
-    def __del__(self):
+    def remove(self):
         try:
             Employee.assigned_ids.remove(self.emp_id)
         except AttributeError:
@@ -39,7 +41,7 @@ class Department:
     def remove_employee(self, emp_id):
         for employee in self.employees:
             if employee.emp_id == emp_id:
-                employee.unregister_id()  # Unregister the employee ID
+                employee.remove()
                 self.employees.remove(employee)
                 return True
         return False
@@ -49,6 +51,15 @@ class Department:
         for employee in self.employees:
             print(employee)
 
+    def remove_all_employees(self):
+        emp_ids = []
+        for employee in self.employees:
+            emp_ids.append(employee.emp_id)
+            employee.remove()
+            self.employees.remove(employee)
+            del employee
+        return emp_ids
+
     def __str__(self):
         return f"Department: {self.name}"
 
@@ -56,17 +67,22 @@ class Department:
 class Company:
     def __init__(self):
         self.departments = {}
+        self.employees = {}
 
-    def add_department(self, department_name):
-        if department_name not in self.departments:
+    def add_department(self, department_name, add_flag=False):
+        if department_name and department_name not in self.departments:
             self.departments[department_name] = Department(department_name)
-            print(f"Department '{department_name}' added successfully.")
+            if add_flag:
+                print(f"Department '{department_name}' added successfully.")
         else:
-            print(f"Department '{department_name}' already exists.")
+            print(f"Department '{department_name}' already exists, or department name is invalid.")
 
     def remove_department(self, department_name):
         if department_name in self.departments:
+            deleted_emp_ids = self.departments[department_name].remove_all_employees()
             del self.departments[department_name]
+            for emp_id in deleted_emp_ids:
+                self.employees.pop(emp_id)
             print(f"Department '{department_name}' removed successfully.")
         else:
             print(f"Department '{department_name}' not found.")
@@ -79,6 +95,10 @@ class Company:
     def get_department(self, department_name):
         return self.departments.get(department_name, None)
 
+    def get_employees(self):
+        for employee in self.employees.values():
+            print(employee)
+
 
 def print_menu():
     print("\nEmployee Management System Menu:")
@@ -88,7 +108,8 @@ def print_menu():
     print("4. Add Department")
     print("5. Remove Department")
     print("6. Display Departments")
-    print("7. Quit")
+    print("7. Display all company Employees")
+    print("8. Exit")
 
 
 def main():
@@ -117,21 +138,22 @@ def main():
                     continue
 
                 department_obj.add_employee(employee)
+                company.employees[emp_id] = employee
                 print("Employee added successfully.")
 
             elif choice == "2":
                 emp_id = input("Enter employee ID to remove: ")
 
                 # Remove employee from department
-                removed = False
-                for department_name in company.departments:
+                try:
+                    employee = company.employees[emp_id]
+                    department_name = employee.get_department()
                     department_obj = company.departments[department_name]
                     if department_obj.remove_employee(emp_id):
                         print(f"Employee with ID {emp_id} removed successfully.")
-                        removed = True
-                        break
+                        company.employees.pop(emp_id)
 
-                if not removed:
+                except KeyError:
                     print(f"Employee with ID {emp_id} not found.")
 
             elif choice == "3":
@@ -148,7 +170,7 @@ def main():
                 department_name = input("Enter department name to add: ")
 
                 # Add department
-                company.add_department(department_name)
+                company.add_department(department_name, True)
 
             elif choice == "5":
                 department_name = input("Enter department name to remove: ")
@@ -161,6 +183,9 @@ def main():
                 company.display_departments()
 
             elif choice == "7":
+                company.get_employees()
+
+            elif choice == "8":
                 print("Exiting Employee Management System. Goodbye!")
                 break
 
